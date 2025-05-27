@@ -6,7 +6,6 @@ use rand::{Rng, rng};
 use std::{
     fs::{self, OpenOptions},
     io::{self, Write},
-    thread,
     time::{Duration, Instant, SystemTime},
 };
 
@@ -62,36 +61,7 @@ impl ReactionTime {
     fn handle_input(&mut self) -> io::Result<()> {
         match self.mode {
             Mode::Waiting => {
-                let then = Instant::now();
-                let dur = Duration::from_millis(rng().random_range(3000..6000));
-                if event::poll(dur)? {
-                    let event = event::read()?;
-                    match event {
-                        event::Event::Key(key) => match key.code {
-                            KeyCode::Char('q') => self.exit = true,
-                            _ => {
-                                self.mode = Mode::TooEarly;
-                                return Ok(());
-                            }
-                        },
-                        event::Event::Mouse(mouse) => match mouse.kind {
-                            MouseEventKind::Down(_) => {
-                                self.mode = Mode::TooEarly;
-                                return Ok(());
-                            }
-                            _ => {
-                                let amount = then.elapsed();
-                                thread::sleep(dur.abs_diff(amount));
-                            }
-                        },
-                        _ => {
-                            let amount = then.elapsed();
-                            thread::sleep(dur.abs_diff(amount));
-                        }
-                    }
-                }
-                self.mode = Mode::Clicking;
-                self.curr = Some(SystemTime::now());
+                self.waiting_input()?;
             }
             Mode::Clicking => {
                 if event::poll(Duration::from_secs(10))? {
@@ -129,6 +99,39 @@ impl ReactionTime {
                 }
             }
         }
+        Ok(())
+    }
+
+    fn waiting_input(&mut self) -> io::Result<()> {
+        let start = Instant::now();
+        let dur = Duration::from_millis(rng().random_range(3000..6000));
+
+        while start.elapsed() < dur {
+            let remaining = dur.checked_sub(start.elapsed()).unwrap_or(Duration::ZERO);
+            if event::poll(remaining)? {
+                let event = event::read()?;
+                match event {
+                    event::Event::Key(key) => {
+                        if let KeyCode::Char('q') = key.code {
+                            self.exit = true;
+                        } else {
+                            self.mode = Mode::TooEarly;
+                        }
+                        return Ok(());
+                    }
+                    event::Event::Mouse(mouse) => {
+                        if let MouseEventKind::Down(_) = mouse.kind {
+                            self.mode = Mode::TooEarly;
+                            return Ok(());
+                        }
+                    }
+                    _ => {} // Ignore other events and continue waiting
+                }
+            }
+        }
+
+        self.mode = Mode::Clicking;
+        self.curr = Some(SystemTime::now());
         Ok(())
     }
 
@@ -253,7 +256,7 @@ impl Widget for &ReactionTime {
             }
             Mode::Clicking => {
                 Block::new()
-                    .style(Style::default().bg(Color::LightGreen))
+                    .style(Style::default().bg(Color::Red))
                     .render(main, buf);
                 Paragraph::new("CLICK NOW FAST OR ELSE YOU'LL DIE NOW CLICK FAST")
                     .centered()
