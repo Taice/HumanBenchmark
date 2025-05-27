@@ -89,12 +89,18 @@ impl ReactionTime {
             Mode::Result | Mode::TimeOut | Mode::TooEarly => {
                 if event::poll(Duration::MAX)? {
                     let event = event::read()?;
-                    if let event::Event::Key(key) = event {
-                        match key.code {
+                    match event {
+                        event::Event::Key(key) => match key.code {
                             KeyCode::Char('q') => self.exit = true,
                             KeyCode::Char('r') => self.mode = Mode::Waiting,
                             _ => (),
+                        },
+                        event::Event::Mouse(mouse) => {
+                            if let MouseEventKind::Down(_) = mouse.kind {
+                                self.mode = Mode::Waiting;
+                            }
                         }
+                        _ => (),
                     }
                 }
             }
@@ -256,7 +262,7 @@ impl Widget for &ReactionTime {
             }
             Mode::Clicking => {
                 Block::new()
-                    .style(Style::default().bg(Color::Red))
+                    .style(Style::default().bg(Color::Green))
                     .render(main, buf);
                 Paragraph::new("CLICK NOW FAST OR ELSE YOU'LL DIE NOW CLICK FAST")
                     .centered()
