@@ -1,12 +1,29 @@
 mod app;
 
-use std::io;
+use std::io::{self, stdout};
 
 use app::Menu;
+use ratatui::crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
 
 fn main() -> io::Result<()> {
-    let mut terminal = ratatui::init();
+    // Setup terminal
+    enable_raw_mode()?;
+    let mut stdout = stdout();
+    execute!(stdout, EnableMouseCapture)?;
+
+    let mut terminal = ratatui::init(); // Your init method
+
+    // Run the app
     let app_result = Menu::default().run(&mut terminal);
-    ratatui::restore();
+
+    // Restore terminal settings
+    execute!(stdout, DisableMouseCapture)?;
+    disable_raw_mode()?;
+    ratatui::restore(); // Your restore method
+
     app_result
 }

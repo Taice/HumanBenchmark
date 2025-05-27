@@ -4,7 +4,7 @@ use std::{io, time::Duration};
 
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, KeyCode},
+    crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Styled},
     symbols::border,
@@ -31,26 +31,104 @@ impl Menu {
     }
 
     fn handle_input(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        if event::poll(Duration::from_millis(1))? {
-            let event = event::read()?;
-            if let event::Event::Key(key) = event {
-                match key.code {
-                    KeyCode::Char('q') => self.exit = true,
-                    KeyCode::Enter => self.go(terminal)?,
-                    KeyCode::Right => self.increase(),
-                    KeyCode::Left => self.decrease(),
-                    KeyCode::Up => self.up(),
-                    KeyCode::Down => self.down(),
-                    _ => (),
-                }
+        if event::poll(Duration::MAX)? {
+            match event::read()? {
+                event::Event::Key(key_event) => self.key_event(key_event, terminal)?,
+                event::Event::Mouse(mouse_event) => self.mouse_event(mouse_event, terminal)?,
+                _ => (),
             }
         }
         Ok(())
     }
 
+    fn key_event(&mut self, key_event: KeyEvent, terminal: &mut DefaultTerminal) -> io::Result<()> {
+        match key_event.code {
+            KeyCode::Char('q') => self.exit = true,
+            KeyCode::Enter => self.go(terminal)?,
+            KeyCode::Right => self.increase(),
+            KeyCode::Left => self.decrease(),
+            KeyCode::Up => self.up(),
+            KeyCode::Down => self.down(),
+            _ => (),
+        }
+        Ok(())
+    }
+
+    fn mouse_event(
+        &mut self,
+        mouse_event: MouseEvent,
+        terminal: &mut DefaultTerminal,
+    ) -> io::Result<()> {
+        self.mouse_index(mouse_event, terminal);
+        if let MouseEventKind::Down(event::MouseButton::Left) = mouse_event.kind {
+            self.go(terminal)?;
+        }
+        Ok(())
+    }
+
+    fn mouse_index(&mut self, mouse_event: MouseEvent, terminal: &mut DefaultTerminal) {
+        let area = terminal.get_frame().area();
+        let vert = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(0),    // ---
+                Constraint::Length(5), // Top
+                Constraint::Length(5), // Mid
+                Constraint::Length(5), // Bot
+                Constraint::Min(0),    // ---
+            ])
+            .split(area);
+
+        let top = &Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(0),         // ---
+                Constraint::Percentage(20), // Left
+                Constraint::Percentage(20), // Mid
+                Constraint::Percentage(20), // Right
+                Constraint::Min(0),         // ---
+            ])
+            .split(vert[2])[1..=3];
+        let mid = &Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(0),         // ---
+                Constraint::Percentage(20), // Left
+                Constraint::Percentage(20), // Mid
+                Constraint::Percentage(20), // Right
+                Constraint::Min(0),         // ---
+            ])
+            .split(vert[3])[1..=3];
+        let bot = &Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(0),         // ---
+                Constraint::Percentage(30), // Left
+                Constraint::Percentage(30), // Right
+                Constraint::Min(0),         // ---
+            ])
+            .split(vert[4])[1..=2];
+
+        let rects = [top, mid, bot];
+
+        let mouse_rect = Rect::new(mouse_event.column, mouse_event.row, 1, 1);
+
+        for (i, row) in rects.iter().enumerate() {
+            for (j, rect) in row.iter().enumerate() {
+                if mouse_rect.intersects(*rect) {
+                    self.index = (i * 3 + j) as i8;
+                    return;
+                }
+            }
+        }
+        self.index = -1;
+    }
+
     fn go(&self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         match self.index {
             0 => reaction_time::ReactionTime::run(terminal)?,
+            1 => (),
             _ => (),
         }
         Ok(())

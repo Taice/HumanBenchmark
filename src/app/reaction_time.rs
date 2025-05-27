@@ -6,12 +6,13 @@ use rand::{Rng, rng};
 use std::{
     fs::{self, OpenOptions},
     io::{self, Write},
-    time::{Duration, SystemTime},
+    thread,
+    time::{Duration, Instant, SystemTime},
 };
 
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, KeyCode},
+    crossterm::event::{self, KeyCode, MouseEventKind},
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Styled},
     symbols::border,
@@ -61,33 +62,55 @@ impl ReactionTime {
     fn handle_input(&mut self) -> io::Result<()> {
         match self.mode {
             Mode::Waiting => {
+                let then = Instant::now();
                 let dur = Duration::from_millis(rng().random_range(3000..6000));
                 if event::poll(dur)? {
                     let event = event::read()?;
-                    if let event::Event::Key(key) = event {
-                        match key.code {
+                    match event {
+                        event::Event::Key(key) => match key.code {
                             KeyCode::Char('q') => self.exit = true,
                             _ => {
                                 self.mode = Mode::TooEarly;
                                 return Ok(());
                             }
+                        },
+                        event::Event::Mouse(mouse) => match mouse.kind {
+                            MouseEventKind::Down(_) => {
+                                self.mode = Mode::TooEarly;
+                                return Ok(());
+                            }
+                            _ => {
+                                let amount = then.elapsed();
+                                thread::sleep(dur.abs_diff(amount));
+                            }
+                        },
+                        _ => {
+                            let amount = then.elapsed();
+                            thread::sleep(dur.abs_diff(amount));
                         }
                     }
                 }
                 self.mode = Mode::Clicking;
+                self.curr = Some(SystemTime::now());
             }
             Mode::Clicking => {
-                self.curr = Some(SystemTime::now());
                 if event::poll(Duration::from_secs(10))? {
                     let event = event::read()?;
-                    if let event::Event::Key(key) = event {
-                        match key.code {
+                    match event {
+                        event::Event::Key(key) => match key.code {
                             KeyCode::Char('q') => self.exit = true,
                             _ => {
                                 self.times.push(self.curr.unwrap().elapsed().unwrap());
                                 self.mode = Mode::Result;
                             }
+                        },
+                        event::Event::Mouse(mouse) => {
+                            if let MouseEventKind::Down(_) = mouse.kind {
+                                self.times.push(self.curr.unwrap().elapsed().unwrap());
+                                self.mode = Mode::Result;
+                            }
                         }
+                        _ => (),
                     }
                 } else {
                     self.mode = Mode::TimeOut;
@@ -176,23 +199,10 @@ impl Widget for &ReactionTime {
             ])
             .split(area);
 
-        let mvert = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1), // border
-                Constraint::Min(0),    // body
-                Constraint::Length(1), // border
-            ])
-            .split(vert[1]);
-
-        let main = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(1), // border
-                Constraint::Min(0),    // body
-                Constraint::Length(1), // border
-            ])
-            .split(mvert[1]);
+        let main = vert[1].inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        });
         let center = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -202,7 +212,7 @@ impl Widget for &ReactionTime {
                 Constraint::Min(0),
                 Constraint::Length(1),
             ])
-            .split(main[1]);
+            .split(main);
 
         Paragraph::new("Reaction Time Test")
             .set_style(Color::Blue)
@@ -218,7 +228,7 @@ impl Widget for &ReactionTime {
             Mode::Waiting => {
                 Block::new()
                     .style(Style::default().bg(Color::Red))
-                    .render(main[1], buf);
+                    .render(main, buf);
                 Paragraph::new("Waiting...")
                     .centered()
                     .set_style(Color::Black)
@@ -232,7 +242,7 @@ impl Widget for &ReactionTime {
             Mode::TooEarly => {
                 Block::new()
                     .style(Style::default().bg(Color::DarkGray))
-                    .render(main[1], buf);
+                    .render(main, buf);
                 Paragraph::new("Too early you loser fuck you early clicker dumbass")
                     .centered()
                     .render(center[1], buf);
@@ -244,7 +254,7 @@ impl Widget for &ReactionTime {
             Mode::Clicking => {
                 Block::new()
                     .style(Style::default().bg(Color::LightGreen))
-                    .render(main[1], buf);
+                    .render(main, buf);
                 Paragraph::new("CLICK NOW FAST OR ELSE YOU'LL DIE NOW CLICK FAST")
                     .centered()
                     .set_style(Color::Black)
