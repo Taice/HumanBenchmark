@@ -2,6 +2,7 @@ mod reaction_time;
 mod sequence_memory;
 
 use std::{
+    fmt::Debug,
     fs::{self, OpenOptions},
     io::{self, Write},
     time::Duration,
@@ -25,10 +26,9 @@ pub trait Game {
 }
 
 pub trait Filed<'a> {
-    type SaveState: serde::Deserialize<'a> + serde::Serialize;
+    const NAME: &'a str;
+    type SaveState: serde::Deserialize<'a> + serde::Serialize + Debug;
 
-    fn get_save_file() -> Option<String>;
-    fn get_dir() -> Option<String>;
     fn get_savestate(&self) -> Self::SaveState;
     fn from_savestate(savestate: Self::SaveState) -> Self;
 
@@ -36,12 +36,13 @@ pub trait Filed<'a> {
         if let Some(file) = Self::get_save_file() {
             let savestate = self.get_savestate();
             if let Ok(json) = serde_json::to_string(&savestate) {
-                if let Err(e) = fs::create_dir_all(Self::get_dir().unwrap()) {
-                    write_log(e.to_string() + "bnanaa");
+                match fs::create_dir_all(Self::get_dir().unwrap()) {
+                    Ok(_) => (),
+                    Err(e) => Self::write_log(e.to_string()),
                 }
                 match fs::write(file, json) {
-                    Ok(_) => write_log(String::from("Successuly saved.")),
-                    Err(e) => write_log(e.to_string() + "bnanaa"),
+                    Ok(_) => Self::write_log(format!("{savestate:?}")),
+                    Err(e) => Self::write_log(e.to_string()),
                 }
             }
         }
@@ -57,15 +58,44 @@ pub trait Filed<'a> {
             Ok(contents) => {
                 let thing: serde_json::Result<Self::SaveState> = serde_json::from_str(&contents);
                 match thing {
-                    Ok(savestate) => {
-                        return Some(Self::from_savestate(savestate));
-                    }
-                    Err(err) => write_log(format!("{err}")),
+                    Ok(savestate) => return Some(Self::from_savestate(savestate)),
+                    Err(e) => Self::write_log(e.to_string()),
                 }
             }
-            Err(err) => write_log(format!("{err}")),
+            Err(e) => Self::write_log(e.to_string()),
         }
         None
+    }
+
+    fn get_save_file() -> Option<String> {
+        let dirs = BaseDirs::new()?;
+        let dir = dirs.data_dir();
+        Some(
+            dir.join(format!("{DIR_NAME}/{}.json", Self::NAME))
+                .to_str()?
+                .to_owned(),
+        )
+    }
+
+    fn get_dir() -> Option<String> {
+        let dirs = BaseDirs::new()?;
+        let dir = dirs.data_dir();
+        Some(dir.join(DIR_NAME).to_str()?.to_owned())
+    }
+
+    fn write_log(log: String) {
+        if let Some(file) = get_log_file() {
+            if let Ok(data_file) = &mut OpenOptions::new().append(true).create(true).open(file) {
+                let now: DateTime<Local> = Local::now();
+                let log = format!(
+                    "[{}] {}: {}\n",
+                    now.format("%Y-%m-%d %H:%M:%S"),
+                    Self::NAME,
+                    log
+                );
+                let _ = data_file.write(log.as_bytes());
+            }
+        }
     }
 }
 
@@ -327,18 +357,4 @@ fn get_log_file() -> Option<String> {
             .to_str()?
             .to_owned(),
     )
-}
-
-fn write_log(log: String) {
-    if let Some(file) = get_log_file() {
-        if let Ok(data_file) = &mut OpenOptions::new().append(true).create(true).open(file) {
-            let now: DateTime<Local> = Local::now();
-            let log = format!(
-                "[{}] ReactionTime: {}",
-                now.format("%Y-%m-%d %H:%M:%S"),
-                log
-            );
-            let _ = data_file.write(log.as_bytes());
-        }
-    }
 }

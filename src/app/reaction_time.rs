@@ -1,8 +1,6 @@
-use super::DIR_NAME;
 use super::Filed;
 use super::Game;
 
-use directories::BaseDirs;
 use rand::{Rng, rng};
 use std::io;
 use std::time::{Duration, Instant, SystemTime};
@@ -18,7 +16,7 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
-const FILE_NAME: &str = "ReactionTime.json";
+const FILE_NAME: &str = "ReactionTime";
 
 #[derive(Default)]
 enum Mode {
@@ -39,7 +37,7 @@ pub struct ReactionTime {
     mode: Mode,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct RTSaveState {
     avg_time: u64,
     num_entries: u32,
@@ -114,6 +112,7 @@ impl Game for ReactionTime {
 }
 
 impl Filed<'_> for ReactionTime {
+    const NAME: &'static str = FILE_NAME;
     type SaveState = RTSaveState;
 
     fn get_savestate(&self) -> Self::SaveState {
@@ -121,22 +120,6 @@ impl Filed<'_> for ReactionTime {
             avg_time: self.get_avg_time(),
             num_entries: self.savestate.num_entries + self.times.len() as u32,
         }
-    }
-
-    fn get_save_file() -> Option<String> {
-        let dirs = BaseDirs::new()?;
-        let dir = dirs.data_dir();
-        Some(
-            dir.join(format!("{DIR_NAME}/{FILE_NAME}"))
-                .to_str()?
-                .to_owned(),
-        )
-    }
-
-    fn get_dir() -> Option<String> {
-        let dirs = BaseDirs::new()?;
-        let dir = dirs.data_dir();
-        Some(dir.join(DIR_NAME).to_str()?.to_owned())
     }
 
     fn from_savestate(savestate: Self::SaveState) -> Self {
