@@ -10,8 +10,9 @@ use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Styled},
+    style::{Color, Style, Styled, Stylize},
     symbols::border,
+    text::Span,
     widgets::{Block, Paragraph, Widget},
 };
 
@@ -87,6 +88,7 @@ impl Game for SequenceMemory {
                     match event {
                         event::Event::Key(key) => match key.code {
                             KeyCode::Enter | KeyCode::Char(' ') => self.mode = Mode::Watching(0),
+                            KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             _ => (),
                         },
                         event::Event::Mouse(mouse) => {
@@ -351,7 +353,7 @@ impl Widget for &SequenceMemory {
             vertical: 1,
         });
 
-        Paragraph::new("Sequence Memory Game")
+        Paragraph::new(Span::from("Sequence Memory Test").fg(Color::Red))
             .centered()
             .block(Block::bordered().border_set(border::DOUBLE))
             .render(vert[0], buf);

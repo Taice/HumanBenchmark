@@ -2,6 +2,8 @@ use super::Filed;
 use super::Game;
 
 use rand::{Rng, rng};
+use ratatui::style::Stylize;
+use ratatui::text::Span;
 use std::io;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -188,10 +190,21 @@ impl Widget for &ReactionTime {
             ])
             .split(area);
 
+        Block::bordered()
+            .border_set(border::DOUBLE)
+            .title("╡ Playing field ╞")
+            .render(vert[1], buf);
+
+        Paragraph::new(Span::from("Reaction Time Test").fg(Color::Red))
+            .centered()
+            .block(Block::bordered().border_set(border::DOUBLE))
+            .render(vert[0], buf);
+
         let main = vert[1].inner(ratatui::layout::Margin {
             horizontal: 1,
             vertical: 1,
         });
+
         let center = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -202,16 +215,6 @@ impl Widget for &ReactionTime {
                 Constraint::Length(1),
             ])
             .split(main);
-
-        Paragraph::new("Reaction Time Test")
-            .set_style(Color::Blue)
-            .centered()
-            .block(Block::bordered().border_set(border::DOUBLE))
-            .render(vert[0], buf);
-
-        Block::bordered()
-            .border_set(border::DOUBLE)
-            .render(vert[1], buf);
 
         match self.mode {
             Mode::Waiting => {
