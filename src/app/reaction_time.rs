@@ -21,28 +21,12 @@ use serde::{Deserialize, Serialize};
 const FILE_NAME: &str = "ReactionTime";
 
 #[derive(Default)]
-enum Mode {
-    #[default]
-    Waiting,
-    TooEarly,
-    Clicking,
-    TimeOut,
-    Result,
-}
-
-#[derive(Default)]
 pub struct ReactionTime {
     exit: bool,
     curr: Option<SystemTime>,
     times: Vec<Duration>,
     savestate: RTSaveState,
     mode: Mode,
-}
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-pub struct RTSaveState {
-    avg_time: u64,
-    num_entries: u32,
 }
 
 impl Game for ReactionTime {
@@ -286,4 +270,20 @@ impl Widget for &ReactionTime {
             }
         }
     }
+}
+
+#[derive(Default)]
+enum Mode {
+    #[default]
+    Waiting,
+    TooEarly,
+    Clicking,
+    TimeOut,
+    Result,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct RTSaveState {
+    avg_time: u64,
+    num_entries: u32,
 }

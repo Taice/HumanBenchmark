@@ -22,21 +22,6 @@ const FILE_NAME: &str = "SequenceMemory";
 // when should the square fade out in millis
 const FADE_OUT: u64 = 500;
 
-#[derive(PartialEq, Eq)]
-enum Mode {
-    Menu,
-    Watching(u32),
-    Waiting(Instant),
-    Clicking,
-    Results,
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Watching(0)
-    }
-}
-
 pub struct SequenceMemory {
     exit: bool,
 
@@ -57,6 +42,143 @@ impl Default for SequenceMemory {
             clicked: None,
             savestate: SMSaveState::default(),
         }
+    }
+}
+
+impl SequenceMemory {
+    fn mouse_input(&mut self, e: MouseEvent, terminal: &mut DefaultTerminal) -> io::Result<()> {
+        if let MouseEventKind::Down(_) = e.kind {
+            let mouse_rect = Rect::new(e.column, e.row, 1, 1);
+            let area = terminal.get_frame().area();
+
+            let vert = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(3), // Title
+                    Constraint::Min(0),    // Body
+                ])
+                .split(area);
+
+            let main = vert[1].inner(ratatui::layout::Margin {
+                horizontal: 1,
+                vertical: 1,
+            });
+
+            let rows = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(0),    // ---
+                    Constraint::Length(4), // Title
+                    Constraint::Length(4), // Title
+                    Constraint::Length(4), // Title
+                    Constraint::Min(0),    // ---
+                ])
+                .split(main);
+
+            let lenth = rows[1].height * 2;
+
+            let rects = [
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Min(0),
+                        Constraint::Length(lenth),
+                        Constraint::Length(lenth),
+                        Constraint::Length(lenth),
+                        Constraint::Min(0),
+                    ])
+                    .split(rows[1]),
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Min(0),
+                        Constraint::Length(lenth),
+                        Constraint::Length(lenth),
+                        Constraint::Length(lenth),
+                        Constraint::Min(0),
+                    ])
+                    .split(rows[2]),
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Min(0),
+                        Constraint::Length(lenth),
+                        Constraint::Length(lenth),
+                        Constraint::Length(lenth),
+                        Constraint::Min(0),
+                    ])
+                    .split(rows[3]),
+            ];
+
+            let mut index = 0;
+            'outer: for y in rects {
+                for el in &y[1..4] {
+                    if mouse_rect.intersects(*el) {
+                        self.clicked = Some((index, Instant::now()));
+                        self.curr.push(index);
+                        if self.check_validity() {
+                            self.mode = Mode::Waiting(Instant::now());
+                            let old = self.scramble.last().unwrap();
+                            let mut rng = rng();
+                            let mut new = rng.random_range(0..9);
+                            while new == *old {
+                                new = rng.random_range(0..9);
+                            }
+                            self.scramble.push(new);
+                            self.curr.clear();
+                        }
+                        break 'outer;
+                    }
+                    index += 1;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn check_validity(&mut self) -> bool {
+        for x in 0..self.curr.len() {
+            if self.curr[x] != self.scramble[x] {
+                self.mode = Mode::Results;
+                self.savestate.avg_score = (self.savestate.avg_score as u32
+                    * self.savestate.num_entries
+                    + self.get_score()) as f32
+                    / (self.savestate.num_entries + 1) as f32;
+                self.savestate.num_entries += 1;
+                self.curr.clear();
+                return false;
+            }
+        }
+
+        self.curr.len() == self.scramble.len()
+    }
+
+    fn get_score(&self) -> u32 {
+        self.scramble.len().saturating_sub(1) as u32
+    }
+
+    fn reset(&mut self) {
+        let st = self.savestate;
+        *self = Self {
+            savestate: st,
+            scramble: vec![rng().random_range(0..9)],
+            ..Default::default()
+        };
+    }
+}
+
+#[derive(PartialEq, Eq)]
+enum Mode {
+    Menu,
+    Watching(u32),
+    Waiting(Instant),
+    Clicking,
+    Results,
+}
+
+impl Default for Mode {
+    fn default() -> Self {
+        Self::Watching(0)
     }
 }
 
@@ -210,128 +332,6 @@ impl Filed<'_> for SequenceMemory {
 
     fn get_savestate(&self) -> Self::SaveState {
         self.savestate
-    }
-}
-
-impl SequenceMemory {
-    fn mouse_input(&mut self, e: MouseEvent, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        if let MouseEventKind::Down(_) = e.kind {
-            let mouse_rect = Rect::new(e.column, e.row, 1, 1);
-            let area = terminal.get_frame().area();
-
-            let vert = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(3), // Title
-                    Constraint::Min(0),    // Body
-                ])
-                .split(area);
-
-            let main = vert[1].inner(ratatui::layout::Margin {
-                horizontal: 1,
-                vertical: 1,
-            });
-
-            let rows = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(0),    // ---
-                    Constraint::Length(4), // Title
-                    Constraint::Length(4), // Title
-                    Constraint::Length(4), // Title
-                    Constraint::Min(0),    // ---
-                ])
-                .split(main);
-
-            let lenth = rows[1].height * 2;
-
-            let rects = [
-                Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(lenth),
-                        Constraint::Length(lenth),
-                        Constraint::Length(lenth),
-                        Constraint::Min(0),
-                    ])
-                    .split(rows[1]),
-                Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(lenth),
-                        Constraint::Length(lenth),
-                        Constraint::Length(lenth),
-                        Constraint::Min(0),
-                    ])
-                    .split(rows[2]),
-                Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(lenth),
-                        Constraint::Length(lenth),
-                        Constraint::Length(lenth),
-                        Constraint::Min(0),
-                    ])
-                    .split(rows[3]),
-            ];
-
-            let mut index = 0;
-            'outer: for y in rects {
-                for el in &y[1..4] {
-                    if mouse_rect.intersects(*el) {
-                        self.clicked = Some((index, Instant::now()));
-                        self.curr.push(index);
-                        if self.check_validity() {
-                            self.mode = Mode::Waiting(Instant::now());
-                            let old = self.scramble.last().unwrap();
-                            let mut rng = rng();
-                            let mut new = rng.random_range(0..9);
-                            while new == *old {
-                                new = rng.random_range(0..9);
-                            }
-                            self.scramble.push(new);
-                            self.curr.clear();
-                        }
-                        break 'outer;
-                    }
-                    index += 1;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn check_validity(&mut self) -> bool {
-        for x in 0..self.curr.len() {
-            if self.curr[x] != self.scramble[x] {
-                self.mode = Mode::Results;
-                self.savestate.avg_score = (self.savestate.avg_score as u32
-                    * self.savestate.num_entries
-                    + self.get_score()) as f32
-                    / (self.savestate.num_entries + 1) as f32;
-                self.savestate.num_entries += 1;
-                self.curr.clear();
-                return false;
-            }
-        }
-
-        self.curr.len() == self.scramble.len()
-    }
-
-    fn get_score(&self) -> u32 {
-        self.scramble.len().saturating_sub(1) as u32
-    }
-
-    fn reset(&mut self) {
-        let st = self.savestate;
-        *self = Self {
-            savestate: st,
-            scramble: vec![rng().random_range(0..9)],
-            ..Default::default()
-        };
     }
 }
 

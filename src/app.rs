@@ -1,5 +1,6 @@
 mod reaction_time;
 mod sequence_memory;
+mod aim_trainer;
 
 use std::{
     fmt::Debug,
