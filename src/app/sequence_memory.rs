@@ -1,6 +1,5 @@
-use super::{DIR_NAME, Filed, Game};
+use super::{Filed, Game};
 
-use directories::BaseDirs;
 use rand::{Rng, rng};
 use std::{
     io,
