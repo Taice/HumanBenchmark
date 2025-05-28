@@ -1,4 +1,5 @@
 mod app;
+use crate::app::Game;
 
 use std::io::{self, stdout};
 
@@ -18,7 +19,7 @@ fn main() -> io::Result<()> {
     let mut terminal = ratatui::init(); // Your init method
 
     // Run the app
-    let app_result = Menu::default().run(&mut terminal);
+    let app_result = Menu::run(&mut terminal);
 
     // Restore terminal settings
     execute!(stdout, DisableMouseCapture)?;

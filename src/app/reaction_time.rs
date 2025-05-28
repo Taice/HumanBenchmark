@@ -1,13 +1,11 @@
 use super::DIR_NAME;
+use super::Filed;
+use super::Game;
 
-use chrono::{DateTime, Local};
 use directories::BaseDirs;
 use rand::{Rng, rng};
-use std::{
-    fs::{self, OpenOptions},
-    io::{self, Write},
-    time::{Duration, Instant, SystemTime},
-};
+use std::io;
+use std::time::{Duration, Instant, SystemTime};
 
 use ratatui::{
     DefaultTerminal, Frame,
@@ -19,6 +17,8 @@ use ratatui::{
 };
 
 use serde::{Deserialize, Serialize};
+
+const FILE_NAME: &str = "ReactionTime.json";
 
 #[derive(Default)]
 enum Mode {
@@ -35,30 +35,30 @@ pub struct ReactionTime {
     exit: bool,
     curr: Option<SystemTime>,
     times: Vec<Duration>,
-    savestate: SaveState,
+    savestate: RTSaveState,
     mode: Mode,
 }
 
 #[derive(Default, Serialize, Deserialize)]
-struct SaveState {
+pub struct RTSaveState {
     avg_time: u64,
     num_entries: u32,
 }
 
-impl ReactionTime {
-    pub fn run(terminal: &mut DefaultTerminal) -> io::Result<()> {
+impl Game for ReactionTime {
+    fn run(terminal: &mut DefaultTerminal) -> io::Result<()> {
         let mut game = Self::load().unwrap_or_default();
 
         while !game.exit {
             terminal.draw(|frame| game.draw(frame))?;
-            game.handle_input()?;
+            game.handle_input(terminal)?;
         }
 
         game.save();
         Ok(())
     }
 
-    fn handle_input(&mut self) -> io::Result<()> {
+    fn handle_input(&mut self, _: &mut DefaultTerminal) -> io::Result<()> {
         match self.mode {
             Mode::Waiting => {
                 self.waiting_input()?;
@@ -68,7 +68,7 @@ impl ReactionTime {
                     let event = event::read()?;
                     match event {
                         event::Event::Key(key) => match key.code {
-                            KeyCode::Char('q') => self.exit = true,
+                            KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             _ => {
                                 self.times.push(self.curr.unwrap().elapsed().unwrap());
                                 self.mode = Mode::Result;
@@ -108,6 +108,46 @@ impl ReactionTime {
         Ok(())
     }
 
+    fn draw(&self, frame: &mut Frame) {
+        frame.render_widget(self, frame.area());
+    }
+}
+
+impl Filed<'_> for ReactionTime {
+    type SaveState = RTSaveState;
+
+    fn get_savestate(&self) -> Self::SaveState {
+        RTSaveState {
+            avg_time: self.get_avg_time(),
+            num_entries: self.savestate.num_entries + self.times.len() as u32,
+        }
+    }
+
+    fn get_save_file() -> Option<String> {
+        let dirs = BaseDirs::new()?;
+        let dir = dirs.data_dir();
+        Some(
+            dir.join(format!("{DIR_NAME}/{FILE_NAME}"))
+                .to_str()?
+                .to_owned(),
+        )
+    }
+
+    fn get_dir() -> Option<String> {
+        let dirs = BaseDirs::new()?;
+        let dir = dirs.data_dir();
+        Some(dir.join(DIR_NAME).to_str()?.to_owned())
+    }
+
+    fn from_savestate(savestate: Self::SaveState) -> Self {
+        Self {
+            savestate,
+            ..Default::default()
+        }
+    }
+}
+
+impl ReactionTime {
     fn waiting_input(&mut self) -> io::Result<()> {
         let start = Instant::now();
         let dur = Duration::from_millis(rng().random_range(3000..6000));
@@ -139,49 +179,6 @@ impl ReactionTime {
         self.mode = Mode::Clicking;
         self.curr = Some(SystemTime::now());
         Ok(())
-    }
-
-    fn draw(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
-    }
-
-    fn load() -> Option<Self> {
-        let file = get_save_file()?;
-        match std::fs::read_to_string(&file) {
-            Ok(contents) => {
-                let thing: serde_json::Result<SaveState> = serde_json::from_str(&contents);
-                match thing {
-                    Ok(savestate) => {
-                        return Some(Self {
-                            savestate,
-                            ..Default::default()
-                        });
-                    }
-                    Err(err) => write_log(format!("{err}")),
-                }
-            }
-            Err(err) => write_log(format!("{err}")),
-        }
-        None
-    }
-
-    fn save(&mut self) {
-        if let Some(file) = get_save_file() {
-            let savestate = SaveState {
-                avg_time: self.get_avg_time(),
-                num_entries: self.savestate.num_entries + self.times.len() as u32,
-            };
-
-            if let Ok(json) = serde_json::to_string(&savestate) {
-                if let Err(e) = fs::create_dir_all(get_dir().unwrap()) {
-                    write_log(e.to_string() + "bnanaa");
-                }
-                match fs::write(file, json) {
-                    Ok(_) => write_log(String::from("Successuly saved.")),
-                    Err(e) => write_log(e.to_string() + "bnanaa"),
-                }
-            }
-        }
     }
 
     // lol what is this shit
@@ -301,46 +298,6 @@ impl Widget for &ReactionTime {
                     .centered()
                     .render(center[4], buf);
             }
-        }
-    }
-}
-
-fn get_save_file() -> Option<String> {
-    let dirs = BaseDirs::new()?;
-    let dir = dirs.data_dir();
-    Some(
-        dir.join(format!("{DIR_NAME}/ReactionTime.json"))
-            .to_str()?
-            .to_owned(),
-    )
-}
-
-fn get_dir() -> Option<String> {
-    let dirs = BaseDirs::new()?;
-    let dir = dirs.data_dir();
-    Some(dir.join(DIR_NAME).to_str()?.to_owned())
-}
-
-fn get_log_file() -> Option<String> {
-    let dirs = BaseDirs::new()?;
-    let dir = dirs.data_dir();
-    Some(
-        dir.join(format!("{DIR_NAME}/logs.txt"))
-            .to_str()?
-            .to_owned(),
-    )
-}
-
-fn write_log(log: String) {
-    if let Some(file) = get_log_file() {
-        if let Ok(data_file) = &mut OpenOptions::new().append(true).create(true).open(file) {
-            let now: DateTime<Local> = Local::now();
-            let log = format!(
-                "[{}] ReactionTime: {}",
-                now.format("%Y-%m-%d %H:%M:%S"),
-                log
-            );
-            let _ = data_file.write(log.as_bytes());
         }
     }
 }

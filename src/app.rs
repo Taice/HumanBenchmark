@@ -1,7 +1,14 @@
 mod reaction_time;
+mod sequence_memory;
 
-use std::{io, time::Duration};
+use std::{
+    fs::{self, OpenOptions},
+    io::{self, Write},
+    time::Duration,
+};
 
+use chrono::{DateTime, Local};
+use directories::BaseDirs;
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
@@ -10,6 +17,57 @@ use ratatui::{
     symbols::border,
     widgets::{Block, Paragraph, Widget},
 };
+
+pub trait Game {
+    fn run(terminal: &mut DefaultTerminal) -> io::Result<()>;
+    fn handle_input(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()>;
+    fn draw(&self, frame: &mut Frame);
+}
+
+pub trait Filed<'a> {
+    type SaveState: serde::Deserialize<'a> + serde::Serialize;
+
+    fn get_save_file() -> Option<String>;
+    fn get_dir() -> Option<String>;
+    fn get_savestate(&self) -> Self::SaveState;
+    fn from_savestate(savestate: Self::SaveState) -> Self;
+
+    fn save(&self) {
+        if let Some(file) = Self::get_save_file() {
+            let savestate = self.get_savestate();
+            if let Ok(json) = serde_json::to_string(&savestate) {
+                if let Err(e) = fs::create_dir_all(Self::get_dir().unwrap()) {
+                    write_log(e.to_string() + "bnanaa");
+                }
+                match fs::write(file, json) {
+                    Ok(_) => write_log(String::from("Successuly saved.")),
+                    Err(e) => write_log(e.to_string() + "bnanaa"),
+                }
+            }
+        }
+    }
+
+    fn load() -> Option<Self>
+    where
+        Self: std::marker::Sized,
+        Self::SaveState: serde::de::DeserializeOwned,
+    {
+        let file = Self::get_save_file()?;
+        match std::fs::read_to_string(&file) {
+            Ok(contents) => {
+                let thing: serde_json::Result<Self::SaveState> = serde_json::from_str(&contents);
+                match thing {
+                    Ok(savestate) => {
+                        return Some(Self::from_savestate(savestate));
+                    }
+                    Err(err) => write_log(format!("{err}")),
+                }
+            }
+            Err(err) => write_log(format!("{err}")),
+        }
+        None
+    }
+}
 
 const DIR_NAME: &str = "HumanBenchmark";
 
@@ -20,30 +78,9 @@ pub struct Menu {
 }
 
 impl Menu {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        while !self.exit {
-            terminal.draw(|frame| self.draw(frame))?;
-            self.handle_input(terminal)?;
-            continue;
-        }
-
-        Ok(())
-    }
-
-    fn handle_input(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        if event::poll(Duration::MAX)? {
-            match event::read()? {
-                event::Event::Key(key_event) => self.key_event(key_event, terminal)?,
-                event::Event::Mouse(mouse_event) => self.mouse_event(mouse_event, terminal)?,
-                _ => (),
-            }
-        }
-        Ok(())
-    }
-
     fn key_event(&mut self, key_event: KeyEvent, terminal: &mut DefaultTerminal) -> io::Result<()> {
         match key_event.code {
-            KeyCode::Char('q') => self.exit = true,
+            KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
             KeyCode::Enter => self.go(terminal)?,
             KeyCode::Right => self.increase(),
             KeyCode::Left => self.decrease(),
@@ -128,7 +165,7 @@ impl Menu {
     fn go(&self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         match self.index {
             0 => reaction_time::ReactionTime::run(terminal)?,
-            1 => (),
+            1 => sequence_memory::SequenceMemory::run(terminal)?,
             _ => (),
         }
         Ok(())
@@ -163,6 +200,31 @@ impl Menu {
         } else if self.index == 4 {
             self.index = 5;
         }
+    }
+}
+
+impl Game for Menu {
+    fn run(terminal: &mut DefaultTerminal) -> io::Result<()> {
+        let mut menu = Menu::default();
+
+        while !menu.exit {
+            terminal.draw(|frame| menu.draw(frame))?;
+            menu.handle_input(terminal)?;
+            continue;
+        }
+
+        Ok(())
+    }
+
+    fn handle_input(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+        if event::poll(Duration::MAX)? {
+            match event::read()? {
+                event::Event::Key(key_event) => self.key_event(key_event, terminal)?,
+                event::Event::Mouse(mouse_event) => self.mouse_event(mouse_event, terminal)?,
+                _ => (),
+            }
+        }
+        Ok(())
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -254,5 +316,29 @@ fn widget(text: &str, color: bool, area: Rect, buf: &mut ratatui::prelude::Buffe
             .centered()
             .block(Block::bordered().border_set(border::THICK))
             .render(area, buf);
+    }
+}
+
+fn get_log_file() -> Option<String> {
+    let dirs = BaseDirs::new()?;
+    let dir = dirs.data_dir();
+    Some(
+        dir.join(format!("{DIR_NAME}/logs.txt"))
+            .to_str()?
+            .to_owned(),
+    )
+}
+
+fn write_log(log: String) {
+    if let Some(file) = get_log_file() {
+        if let Ok(data_file) = &mut OpenOptions::new().append(true).create(true).open(file) {
+            let now: DateTime<Local> = Local::now();
+            let log = format!(
+                "[{}] ReactionTime: {}",
+                now.format("%Y-%m-%d %H:%M:%S"),
+                log
+            );
+            let _ = data_file.write(log.as_bytes());
+        }
     }
 }
