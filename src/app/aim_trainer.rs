@@ -302,12 +302,7 @@ impl Widget for &AimTrainer {
             Mode::Playing => {
                 Block::bordered()
                     .border_set(border::DOUBLE)
-                    .title(format!(
-                        "╡ Playing field {}, {}, {} ╞",
-                        self.times.avg_score,
-                        self.times.num_entries,
-                        self.instant.unwrap().elapsed().as_millis()
-                    ))
+                    .title("╡ Playing field ╞")
                     .render(vert[1], buf);
 
                 let pf_vert = Layout::default()
@@ -362,12 +357,12 @@ impl Widget for &AimTrainer {
                     ])
                     .split(main);
 
-                Paragraph::new(format!("Your score is: {}", self.times.avg_score))
+                Paragraph::new(format!("Your score is: {:.0}", self.times.avg_score))
                     .centered()
                     .render(constraint[1], buf);
 
                 Paragraph::new(format!(
-                    "Your avg score overall is: {}",
+                    "Your avg score overall is: {:.0}",
                     self.savestate.avg_score
                 ))
                 .centered()

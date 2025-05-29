@@ -332,9 +332,12 @@ impl Widget for &NumberMemory {
                     .centered()
                     .render(results[1], buf);
 
-                Paragraph::new(format!("Your avg score is: {}", self.savestate.avg_score))
-                    .centered()
-                    .render(results[3], buf);
+                Paragraph::new(format!(
+                    "Your avg score is: {:.0}",
+                    self.savestate.avg_score
+                ))
+                .centered()
+                .render(results[3], buf);
 
                 let thong = Layout::default()
                     .direction(Direction::Horizontal)
