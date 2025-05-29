@@ -1,6 +1,6 @@
+mod aim_trainer;
 mod reaction_time;
 mod sequence_memory;
-mod aim_trainer;
 
 use std::{
     fmt::Debug,
@@ -197,6 +197,7 @@ impl Menu {
         match self.index {
             0 => reaction_time::ReactionTime::run(terminal)?,
             1 => sequence_memory::SequenceMemory::run(terminal)?,
+            2 => aim_trainer::AimTrainer::run(terminal)?,
             _ => (),
         }
         Ok(())

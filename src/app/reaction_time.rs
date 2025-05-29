@@ -29,6 +29,50 @@ pub struct ReactionTime {
     mode: Mode,
 }
 
+impl ReactionTime {
+    fn waiting_input(&mut self) -> io::Result<()> {
+        let start = Instant::now();
+        let dur = Duration::from_millis(rng().random_range(3000..6000));
+
+        while start.elapsed() < dur {
+            let remaining = dur.checked_sub(start.elapsed()).unwrap_or(Duration::ZERO);
+            if event::poll(remaining)? {
+                let event = event::read()?;
+                match event {
+                    event::Event::Key(key) => {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => self.exit = true,
+                            _ => self.mode = Mode::TooEarly,
+                        }
+                        return Ok(());
+                    }
+                    event::Event::Mouse(mouse) => {
+                        if let MouseEventKind::Down(_) = mouse.kind {
+                            self.mode = Mode::TooEarly;
+                            return Ok(());
+                        }
+                    }
+                    _ => {} // Ignore other events and continue waiting
+                }
+            }
+        }
+
+        self.mode = Mode::Clicking;
+        self.curr = Some(SystemTime::now());
+        Ok(())
+    }
+
+    // lol what is this shit
+    fn get_avg_time(&self) -> u64 {
+        (self.savestate.avg_score * self.savestate.num_entries as u64
+            + self
+                .times
+                .iter()
+                .fold(0u64, |acc, x| acc + x.as_millis() as u64))
+            / (self.savestate.num_entries as u64 + self.times.len() as u64)
+    }
+}
+
 impl Game for ReactionTime {
     fn run(terminal: &mut DefaultTerminal) -> io::Result<()> {
         let mut game = Self::load().unwrap_or_default();
@@ -75,7 +119,7 @@ impl Game for ReactionTime {
                     let event = event::read()?;
                     match event {
                         event::Event::Key(key) => match key.code {
-                            KeyCode::Char('q') => self.exit = true,
+                            KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             KeyCode::Char('r') => self.mode = Mode::Waiting,
                             _ => (),
                         },
@@ -103,7 +147,7 @@ impl Filed<'_> for ReactionTime {
 
     fn get_savestate(&self) -> Self::SaveState {
         RTSaveState {
-            avg_time: self.get_avg_time(),
+            avg_score: self.get_avg_time(),
             num_entries: self.savestate.num_entries + self.times.len() as u32,
         }
     }
@@ -113,51 +157,6 @@ impl Filed<'_> for ReactionTime {
             savestate,
             ..Default::default()
         }
-    }
-}
-
-impl ReactionTime {
-    fn waiting_input(&mut self) -> io::Result<()> {
-        let start = Instant::now();
-        let dur = Duration::from_millis(rng().random_range(3000..6000));
-
-        while start.elapsed() < dur {
-            let remaining = dur.checked_sub(start.elapsed()).unwrap_or(Duration::ZERO);
-            if event::poll(remaining)? {
-                let event = event::read()?;
-                match event {
-                    event::Event::Key(key) => {
-                        if let KeyCode::Char('q') = key.code {
-                            self.exit = true;
-                        } else {
-                            self.mode = Mode::TooEarly;
-                        }
-                        return Ok(());
-                    }
-                    event::Event::Mouse(mouse) => {
-                        if let MouseEventKind::Down(_) = mouse.kind {
-                            self.mode = Mode::TooEarly;
-                            return Ok(());
-                        }
-                    }
-                    _ => {} // Ignore other events and continue waiting
-                }
-            }
-        }
-
-        self.mode = Mode::Clicking;
-        self.curr = Some(SystemTime::now());
-        Ok(())
-    }
-
-    // lol what is this shit
-    fn get_avg_time(&self) -> u64 {
-        (self.savestate.avg_time * self.savestate.num_entries as u64
-            + self
-                .times
-                .iter()
-                .fold(0u64, |acc, x| acc + x.as_millis() as u64))
-            / (self.savestate.num_entries as u64 + self.times.len() as u64)
     }
 }
 
@@ -210,7 +209,7 @@ impl Widget for &ReactionTime {
                     .set_style(Color::Black)
                     .render(center[1], buf);
 
-                Paragraph::new("'q' to quit")
+                Paragraph::new("Esc/'q' to quit")
                     .centered()
                     .set_style(Color::Black)
                     .render(center[4], buf);
@@ -223,7 +222,7 @@ impl Widget for &ReactionTime {
                     .centered()
                     .render(center[1], buf);
 
-                Paragraph::new("'r' to restart and 'q' to quit")
+                Paragraph::new("'r' to restart and Esc/'q' to quit")
                     .centered()
                     .render(center[4], buf);
             }
@@ -236,7 +235,7 @@ impl Widget for &ReactionTime {
                     .set_style(Color::Black)
                     .render(center[1], buf);
 
-                Paragraph::new("'q' to quit")
+                Paragraph::new("Esc/'q' to quit")
                     .centered()
                     .set_style(Color::Black)
                     .render(center[4], buf);
@@ -246,7 +245,7 @@ impl Widget for &ReactionTime {
                     .centered()
                     .render(center[1], buf);
 
-                Paragraph::new("'r' to restart and 'q' to quit")
+                Paragraph::new("'r' to restart and Esc/'q' to quit")
                     .centered()
                     .render(center[4], buf);
             }
@@ -264,7 +263,7 @@ impl Widget for &ReactionTime {
                 .centered()
                 .render(center[3], buf);
 
-                Paragraph::new("'r' to restart and 'q' to quit")
+                Paragraph::new("'r' to restart and Esc/'q' to quit")
                     .centered()
                     .render(center[4], buf);
             }
@@ -284,6 +283,6 @@ enum Mode {
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct RTSaveState {
-    avg_time: u64,
+    avg_score: u64,
     num_entries: u32,
 }
