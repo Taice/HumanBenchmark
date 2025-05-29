@@ -1,6 +1,5 @@
 mod mode;
 mod number;
-mod savestate;
 
 use std::{
     cmp::Ordering,
@@ -19,9 +18,8 @@ use ratatui::{
     text::Span,
     widgets::{Block, Paragraph, Widget},
 };
-use savestate::NMSaveState;
 
-use super::{Filed, Game};
+use super::{Filed, Game, savestate::SaveState};
 
 const FILE_NAME: &str = "NumberMemory";
 const FADE_OUT: u64 = 2000;
@@ -35,7 +33,7 @@ pub struct NumberMemory {
 
     number: Number,
     actual_number: Number,
-    savestate: NMSaveState,
+    savestate: SaveState,
 }
 
 impl NumberMemory {
@@ -83,7 +81,7 @@ impl NumberMemory {
             self.mode = Mode::Watching(Instant::now());
         } else {
             self.mode = Mode::Results;
-            self.savestate.update(self.score);
+            self.savestate.update(self.score as f32);
         }
     }
 
@@ -179,7 +177,7 @@ impl Game for NumberMemory {
 }
 
 impl Filed<'_> for NumberMemory {
-    type SaveState = NMSaveState;
+    type SaveState = SaveState;
     const NAME: &'static str = FILE_NAME;
 
     fn get_savestate(&self) -> Self::SaveState {

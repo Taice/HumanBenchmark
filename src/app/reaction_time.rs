@@ -1,5 +1,7 @@
-use super::Filed;
-use super::Game;
+mod mode;
+
+use super::{Filed, Game, savestate::SaveState};
+use mode::Mode;
 
 use rand::{Rng, rng};
 use ratatui::style::Stylize;
@@ -16,8 +18,6 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 
-use serde::{Deserialize, Serialize};
-
 const FILE_NAME: &str = "ReactionTime";
 
 #[derive(Default)]
@@ -25,7 +25,7 @@ pub struct ReactionTime {
     exit: bool,
     curr: Option<SystemTime>,
     times: Vec<Duration>,
-    savestate: RTSaveState,
+    savestate: SaveState,
     mode: Mode,
 }
 
@@ -64,7 +64,7 @@ impl ReactionTime {
 
     // lol what is this shit
     fn get_avg_time(&self) -> u64 {
-        (self.savestate.avg_score * self.savestate.num_entries as u64
+        (self.savestate.avg_score.round() as u64 * self.savestate.num_entries as u64
             + self
                 .times
                 .iter()
@@ -143,11 +143,11 @@ impl Game for ReactionTime {
 
 impl Filed<'_> for ReactionTime {
     const NAME: &'static str = FILE_NAME;
-    type SaveState = RTSaveState;
+    type SaveState = SaveState;
 
     fn get_savestate(&self) -> Self::SaveState {
-        RTSaveState {
-            avg_score: self.get_avg_time(),
+        SaveState {
+            avg_score: self.get_avg_time() as f32,
             num_entries: self.savestate.num_entries + self.times.len() as u32,
         }
     }
@@ -269,20 +269,4 @@ impl Widget for &ReactionTime {
             }
         }
     }
-}
-
-#[derive(Default)]
-enum Mode {
-    #[default]
-    Waiting,
-    TooEarly,
-    Clicking,
-    TimeOut,
-    Result,
-}
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-pub struct RTSaveState {
-    avg_score: u64,
-    num_entries: u32,
 }

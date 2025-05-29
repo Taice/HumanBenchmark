@@ -1,3 +1,6 @@
+mod mode;
+
+use mode::Mode;
 use std::{
     io,
     time::{Duration, Instant},
@@ -14,9 +17,8 @@ use ratatui::{
     text::Span,
     widgets::{Block, Paragraph, Widget},
 };
-use serde::{Deserialize, Serialize};
 
-use super::{Filed, Game};
+use super::{Filed, Game, savestate::SaveState};
 
 const FILE_NAME: &str = "AimTrainer";
 const TARGET_AMOUNT: u64 = 30;
@@ -31,21 +33,11 @@ pub struct AimTrainer {
     mode: Mode,
     target: Position,
     instant: Option<Instant>,
-    times: ATSaveState,
-    savestate: ATSaveState,
+    times: SaveState,
+    savestate: SaveState,
 }
 
 impl AimTrainer {
-    fn update_savestate(&mut self, score: u64) {
-        let st = ATSaveState {
-            avg_score: (self.savestate.avg_score * self.savestate.num_entries + score)
-                / (self.savestate.num_entries + 1),
-            num_entries: self.savestate.num_entries + 1,
-        };
-
-        self.savestate = st;
-    }
-
     fn mouse_input(&mut self, terminal: &mut DefaultTerminal, mouse: MouseEvent) {
         match self.mode {
             Mode::Waiting => {
@@ -168,13 +160,10 @@ impl AimTrainer {
 
     fn update_times(&mut self) {
         if let Some(val) = self.instant {
-            self.times.avg_score = ((self.times.avg_score * self.times.num_entries)
-                + val.elapsed().as_millis() as u64)
-                / (self.times.num_entries + 1);
-            self.times.num_entries += 1;
-            if self.times.num_entries >= TARGET_AMOUNT {
+            self.times.update(val.elapsed().as_millis() as f32);
+            if self.times.num_entries as u64 >= TARGET_AMOUNT {
                 self.mode = Mode::Results;
-                self.update_savestate(self.times.avg_score);
+                self.savestate.update(self.times.avg_score);
             }
         }
     }
@@ -226,7 +215,8 @@ impl Game for AimTrainer {
 
 impl Filed<'_> for AimTrainer {
     const NAME: &'static str = FILE_NAME;
-    type SaveState = ATSaveState;
+    type SaveState = SaveState;
+
     fn get_savestate(&self) -> Self::SaveState {
         self.savestate
     }
@@ -393,19 +383,4 @@ fn render_target(rect: Rect, buf: &mut Buffer) {
         .border_set(border::QUADRANT_OUTSIDE)
         .style(Style::default().bg(Color::Rgb(50, 50, 50)))
         .render(rect, buf);
-}
-
-#[derive(Default, Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct ATSaveState {
-    // in millis
-    avg_score: u64,
-    num_entries: u64,
-}
-
-#[derive(Debug, Default, Clone, Copy)]
-enum Mode {
-    #[default]
-    Waiting,
-    Playing,
-    Results,
 }

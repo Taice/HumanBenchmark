@@ -2,6 +2,7 @@ mod aim_trainer;
 mod number_memory;
 mod reaction_time;
 mod sequence_memory;
+mod savestate;
 
 use std::{
     fmt::Debug,
@@ -14,7 +15,6 @@ use chrono::{DateTime, Local};
 use directories::BaseDirs;
 use ratatui::{
     DefaultTerminal, Frame,
-    buffer::Buffer,
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Styled},

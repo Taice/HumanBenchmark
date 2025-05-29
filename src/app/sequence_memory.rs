@@ -1,4 +1,7 @@
-use super::{Filed, Game};
+mod mode;
+
+use super::{Filed, Game, savestate::SaveState};
+use mode::Mode;
 
 use rand::{Rng, rng};
 use std::{
@@ -16,10 +19,7 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 
-use serde::{Deserialize, Serialize};
-
 const FILE_NAME: &str = "SequenceMemory";
-// when should the square fade out in millis
 const FADE_OUT: u64 = 500;
 
 pub struct SequenceMemory {
@@ -29,7 +29,7 @@ pub struct SequenceMemory {
     scramble: Vec<u8>,
     mode: Mode,
     clicked: Option<(u8, Instant)>,
-    savestate: SMSaveState,
+    savestate: SaveState,
 }
 
 impl Default for SequenceMemory {
@@ -40,7 +40,7 @@ impl Default for SequenceMemory {
             scramble: vec![rng().random_range(0..9)],
             mode: Mode::Menu,
             clicked: None,
-            savestate: SMSaveState::default(),
+            savestate: SaveState::default(),
         }
     }
 }
@@ -140,11 +140,7 @@ impl SequenceMemory {
         for x in 0..self.curr.len() {
             if self.curr[x] != self.scramble[x] {
                 self.mode = Mode::Results;
-                self.savestate.avg_score = (self.savestate.avg_score as u32
-                    * self.savestate.num_entries
-                    + self.get_score()) as f32
-                    / (self.savestate.num_entries + 1) as f32;
-                self.savestate.num_entries += 1;
+                self.savestate.update(self.get_score() as f32);
                 self.curr.clear();
                 return false;
             }
@@ -165,27 +161,6 @@ impl SequenceMemory {
             ..Default::default()
         };
     }
-}
-
-#[derive(PartialEq, Eq)]
-enum Mode {
-    Menu,
-    Watching(u32),
-    Waiting(Instant),
-    Clicking,
-    Results,
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Watching(0)
-    }
-}
-
-#[derive(Default, Serialize, Deserialize, Clone, Copy, Debug)]
-pub struct SMSaveState {
-    avg_score: f32,
-    num_entries: u32,
 }
 
 impl Game for SequenceMemory {
@@ -321,7 +296,7 @@ impl Game for SequenceMemory {
 
 impl Filed<'_> for SequenceMemory {
     const NAME: &'static str = FILE_NAME;
-    type SaveState = SMSaveState;
+    type SaveState = SaveState;
 
     fn from_savestate(savestate: Self::SaveState) -> Self {
         Self {
