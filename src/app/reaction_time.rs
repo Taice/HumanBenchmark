@@ -173,15 +173,15 @@ impl Widget for &ReactionTime {
             ])
             .split(area);
 
-        Block::bordered()
-            .border_set(border::DOUBLE)
-            .title("╡ Playing field ╞")
-            .render(vert[1], buf);
-
         Paragraph::new(Span::from("Reaction Time Test").fg(Color::Red))
             .centered()
             .block(Block::bordered().border_set(border::DOUBLE))
             .render(vert[0], buf);
+
+        Block::bordered()
+            .border_set(border::DOUBLE)
+            .title("╡ Playing field ╞")
+            .render(vert[1], buf);
 
         let main = vert[1].inner(ratatui::layout::Margin {
             horizontal: 1,

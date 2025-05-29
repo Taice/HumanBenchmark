@@ -1,4 +1,5 @@
 mod aim_trainer;
+mod number_memory;
 mod reaction_time;
 mod sequence_memory;
 
@@ -13,6 +14,7 @@ use chrono::{DateTime, Local};
 use directories::BaseDirs;
 use ratatui::{
     DefaultTerminal, Frame,
+    buffer::Buffer,
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Styled},
@@ -198,6 +200,7 @@ impl Menu {
             0 => reaction_time::ReactionTime::run(terminal)?,
             1 => sequence_memory::SequenceMemory::run(terminal)?,
             2 => aim_trainer::AimTrainer::run(terminal)?,
+            3 => number_memory::NumberMemory::run(terminal)?,
             _ => (),
         }
         Ok(())
