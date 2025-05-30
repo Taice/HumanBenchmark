@@ -2,9 +2,9 @@ use std::time::Instant;
 
 #[derive(PartialEq, Eq)]
 pub enum Mode {
-    Menu,
+    Waiting,
     Watching(u32),
-    Waiting(Instant),
+    Pause(Instant),
     Clicking,
     Results,
 }

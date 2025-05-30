@@ -38,7 +38,7 @@ impl Default for SequenceMemory {
             exit: false,
             curr: vec![],
             scramble: vec![rng().random_range(0..9)],
-            mode: Mode::Menu,
+            mode: Mode::Waiting,
             clicked: None,
             savestate: SaveState::default(),
         }
@@ -117,7 +117,7 @@ impl SequenceMemory {
                         self.clicked = Some((index, Instant::now()));
                         self.curr.push(index);
                         if self.check_validity() {
-                            self.mode = Mode::Waiting(Instant::now());
+                            self.mode = Mode::Pause(Instant::now());
                             let old = self.scramble.last().unwrap();
                             let mut rng = rng();
                             let mut new = rng.random_range(0..9);
@@ -178,7 +178,7 @@ impl Game for SequenceMemory {
 
     fn handle_input(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         match self.mode {
-            Mode::Menu => {
+            Mode::Waiting => {
                 if event::poll(Duration::MAX)? {
                     let event = event::read()?;
 
@@ -226,7 +226,7 @@ impl Game for SequenceMemory {
                     Mode::Watching(step + 1)
                 };
             }
-            Mode::Waiting(instant) => {
+            Mode::Pause(instant) => {
                 let dur = Duration::from_millis(FADE_OUT * 2).saturating_sub(instant.elapsed());
                 if event::poll(dur / 2)? {
                     match event::read()? {
@@ -334,10 +334,10 @@ impl Widget for &SequenceMemory {
             .render(vert[0], buf);
 
         match self.mode {
-            Mode::Menu => {
+            Mode::Waiting => {
                 Block::bordered()
                     .border_set(border::DOUBLE)
-                    .title("╡ Menu ╞")
+                    .title("╡ Playing field ╞")
                     .render(vert[1], buf);
 
                 let constraints = Layout::default()
@@ -353,7 +353,7 @@ impl Widget for &SequenceMemory {
                     .centered()
                     .render(constraints[1], buf);
             }
-            Mode::Clicking | Mode::Waiting(_) => {
+            Mode::Clicking | Mode::Pause(_) => {
                 let mut clicked = -1;
                 if let Some((i, instant)) = self.clicked {
                     if (instant.elapsed().as_millis() as u64) < FADE_OUT {
