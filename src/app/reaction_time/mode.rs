@@ -5,5 +5,5 @@ pub enum Mode {
     TooEarly,
     Clicking,
     TimeOut,
-    Result,
+    Results,
 }

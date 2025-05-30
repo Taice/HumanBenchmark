@@ -99,13 +99,13 @@ impl Game for ReactionTime {
                             KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             _ => {
                                 self.times.push(self.curr.unwrap().elapsed().unwrap());
-                                self.mode = Mode::Result;
+                                self.mode = Mode::Results;
                             }
                         },
                         event::Event::Mouse(mouse) => {
                             if let MouseEventKind::Down(_) = mouse.kind {
                                 self.times.push(self.curr.unwrap().elapsed().unwrap());
-                                self.mode = Mode::Result;
+                                self.mode = Mode::Results;
                             }
                         }
                         _ => (),
@@ -114,13 +114,13 @@ impl Game for ReactionTime {
                     self.mode = Mode::TimeOut;
                 }
             }
-            Mode::Result | Mode::TimeOut | Mode::TooEarly => {
+            Mode::Results | Mode::TimeOut | Mode::TooEarly => {
                 if event::poll(Duration::MAX)? {
                     let event = event::read()?;
                     match event {
                         event::Event::Key(key) => match key.code {
                             KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
-                            KeyCode::Char('r') => self.mode = Mode::Waiting,
+                            KeyCode::Enter | KeyCode::Char('r') => self.mode = Mode::Waiting,
                             _ => (),
                         },
                         event::Event::Mouse(mouse) => {
@@ -249,7 +249,7 @@ impl Widget for &ReactionTime {
                     .centered()
                     .render(center[4], buf);
             }
-            Mode::Result => {
+            Mode::Results => {
                 Paragraph::new(format!(
                     "Your time was: {}ms",
                     self.times.last().unwrap().as_millis()

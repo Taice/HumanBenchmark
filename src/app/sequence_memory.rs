@@ -277,7 +277,7 @@ impl Game for SequenceMemory {
                                 self.exit = true;
                                 return Ok(());
                             }
-                            KeyCode::Char('r') => {
+                            KeyCode::Enter | KeyCode::Char('r') => {
                                 self.reset();
                             }
                             _ => (),

@@ -8,8 +8,8 @@ pub struct SaveState {
 
 impl SaveState {
     pub fn update(&mut self, score: f32) {
-        self.avg_score = (self.avg_score * self.num_entries as f32 + score as f32)
-            / (self.num_entries + 1) as f32;
+        self.avg_score =
+            (self.avg_score * self.num_entries as f32 + score) / (self.num_entries + 1) as f32;
         self.num_entries += 1;
     }
 }

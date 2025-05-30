@@ -160,7 +160,7 @@ impl Game for NumberMemory {
                     if let event::Event::Key(key) = event::read()? {
                         match key.code {
                             KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
-                            KeyCode::Char('r') => self.reset(),
+                            KeyCode::Enter | KeyCode::Char('r') => self.reset(),
                             _ => (),
                         }
                     }
@@ -232,8 +232,6 @@ impl Widget for &NumberMemory {
             }
 
             Mode::Watching(instant) => {
-                block.title("╡ Watching... ╞").render(vert[1], buf);
-
                 let mut string = String::from("╡");
                 let percent = ((instant.elapsed().as_millis() as f32 / (self.get_dur()) as f32)
                     * 10.0)
@@ -247,31 +245,7 @@ impl Widget for &NumberMemory {
                 }
                 string += "╞";
 
-                let thing = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(3),
-                        Constraint::Min(0),
-                    ])
-                    .split(main)[1];
-
-                let thingg = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length((self.actual_number.len() as u16 + 2).max(14)),
-                        Constraint::Min(0),
-                    ])
-                    .split(thing)[1];
-
-                Paragraph::new(self.actual_number.to_string())
-                    .centered()
-                    .block(Block::bordered().border_set(border::DOUBLE).title(string))
-                    .render(thingg, buf);
-            }
-            Mode::Playing => {
-                block.title("╡ Results ╞").render(vert[1], buf);
+                block.title("╡ Watching.. ╞").render(vert[1], buf);
 
                 let thing = Layout::default()
                     .direction(Direction::Vertical)
@@ -286,7 +260,42 @@ impl Widget for &NumberMemory {
                     .direction(Direction::Horizontal)
                     .constraints([
                         Constraint::Min(0),
-                        Constraint::Length((self.actual_number.len() as u16 + 2).max(14)),
+                        Constraint::Length((self.actual_number.len() as u16 + 4).max(14)),
+                        Constraint::Min(0),
+                    ])
+                    .split(thing)[1];
+
+                Block::bordered()
+                    .border_set(border::DOUBLE)
+                    .title(string)
+                    .title_alignment(ratatui::layout::Alignment::Center)
+                    .render(thong, buf);
+
+                Paragraph::new(self.actual_number.to_string()).render(
+                    thong.inner(Margin {
+                        horizontal: 2,
+                        vertical: 1,
+                    }),
+                    buf,
+                );
+            }
+            Mode::Playing => {
+                block.title("╡ Playing ╞").render(vert[1], buf);
+
+                let thing = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Min(0),
+                        Constraint::Length(3),
+                        Constraint::Min(0),
+                    ])
+                    .split(main)[1];
+
+                let thong = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Min(0),
+                        Constraint::Length((self.actual_number.len() as u16 + 4).max(14)),
                         Constraint::Min(0),
                     ])
                     .split(thing)[1];
@@ -297,19 +306,10 @@ impl Widget for &NumberMemory {
                     .title_alignment(ratatui::layout::Alignment::Center)
                     .render(thong, buf);
 
-                let inner = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(1),
-                        Constraint::Min(0),
-                    ])
-                    .split(thong);
-
                 Paragraph::new(self.number.to_string()).render(
-                    inner[1].inner(Margin {
-                        horizontal: 1,
-                        vertical: 0,
+                    thong.inner(Margin {
+                        horizontal: 2,
+                        vertical: 1,
                     }),
                     buf,
                 );
@@ -343,7 +343,7 @@ impl Widget for &NumberMemory {
                     .direction(Direction::Horizontal)
                     .constraints([
                         Constraint::Min(0),
-                        Constraint::Length((self.actual_number.len() as u16 + 2).max(14)),
+                        Constraint::Length((self.actual_number.len() as u16 + 4).max(14)),
                         Constraint::Min(0),
                     ])
                     .split(results[2])[1];
@@ -362,13 +362,14 @@ impl Widget for &NumberMemory {
                         Constraint::Length(1),
                         Constraint::Min(0),
                     ])
-                    .split(thong);
+                    .split(thong.inner(Margin {
+                        horizontal: 2,
+                        vertical: 0,
+                    }));
 
                 Paragraph::new(self.number.get_styled_text(&self.actual_number))
-                    .centered()
                     .render(inner[1], buf);
                 Paragraph::new(self.number.get_wrong_styled_text(&self.actual_number))
-                    .centered()
                     .render(inner[2], buf);
             }
         }
