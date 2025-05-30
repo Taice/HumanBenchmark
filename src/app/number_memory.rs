@@ -113,7 +113,7 @@ impl Game for NumberMemory {
                                 self.mode = Mode::Watching(Instant::now());
                                 self.new_number();
                             }
-                            KeyCode::Char('q') => self.exit = true,
+                            KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             KeyCode::Char('r') => self.reset(),
                             _ => (),
                         }
@@ -127,7 +127,7 @@ impl Game for NumberMemory {
                 if event::poll(Duration::from_millis(self.get_dur() / 10))? {
                     if let event::Event::Key(key) = event::read()? {
                         match key.code {
-                            KeyCode::Char('q') => self.exit = true,
+                            KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             KeyCode::Char('r') => self.reset(),
                             KeyCode::Char(' ') => self.mode = Mode::Playing,
                             _ => (),
