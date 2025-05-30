@@ -1,8 +1,9 @@
 mod aim_trainer;
 mod number_memory;
 mod reaction_time;
-mod sequence_memory;
 mod savestate;
+mod sequence_memory;
+mod verbal_memory;
 
 use std::{
     fmt::Debug,
@@ -201,6 +202,7 @@ impl Menu {
             1 => sequence_memory::SequenceMemory::run(terminal)?,
             2 => aim_trainer::AimTrainer::run(terminal)?,
             3 => number_memory::NumberMemory::run(terminal)?,
+            4 => verbal_memory::VerbalMemory::run(terminal)?,
             _ => (),
         }
         Ok(())
