@@ -19,9 +19,9 @@ use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Styled},
-    symbols::border,
-    widgets::{Block, Paragraph, Widget},
+    style::{Color, Styled, Stylize},
+    symbols::{Marker, border},
+    widgets::{Axis, Block, Chart, Dataset, GraphType, Paragraph, Widget},
 };
 
 pub trait Game {
@@ -366,4 +366,57 @@ fn get_log_file() -> Option<String> {
             .to_str()?
             .to_owned(),
     )
+}
+
+fn render_graph(
+    avg_score: f64,
+    score: f64,
+    dataset: Dataset,
+    bounds: [f64; 2],
+    main: Rect,
+    buf: &mut ratatui::prelude::Buffer,
+) {
+    let avg_score_data = [(avg_score, 1.0)];
+
+    let avg_score_dataset = Dataset::default()
+        .marker(Marker::Braille)
+        .graph_type(GraphType::Bar)
+        .green()
+        .data(&avg_score_data);
+
+    let score_data = [(score, 1.0)];
+
+    let score_dataset = Dataset::default()
+        .marker(Marker::Braille)
+        .graph_type(GraphType::Bar)
+        .red()
+        .data(&score_data);
+
+    let y = Axis::default().bounds([0.0, 1.0]);
+
+    let x = Axis::default().bounds(bounds);
+
+    Chart::new(vec![dataset, avg_score_dataset, score_dataset])
+        .y_axis(y)
+        .x_axis(x)
+        .render(main, buf);
+
+    let avg_string = format!(" Avg. score ({:.1})", avg_score);
+    let string = format!(" Score ({:.1})", score);
+
+    let hort = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(0),
+            Constraint::Length(avg_string.len().max(string.len()) as u16 + 4),
+        ])
+        .split(main);
+
+    let lines = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .split(hort[1]);
+
+    ("---".set_style(Color::Red) + string.into()).render(lines[0], buf);
+    ("---".set_style(Color::Green) + avg_string.into()).render(lines[1], buf);
 }

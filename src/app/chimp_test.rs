@@ -7,19 +7,19 @@ use ratatui::{
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Style, Styled, Stylize},
-    symbols::border,
-    text::{Line, Span},
-    widgets::{Block, Paragraph, Widget},
+    symbols::{Marker, border},
+    text::Span,
+    widgets::{Block, Dataset, GraphType, Paragraph, Widget},
 };
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
-use super::{Filed, Game, savestate::SaveState};
+use super::{Filed, Game, render_graph, savestate::SaveState};
 
 const FILE_NAME: &str = "ChimpTest";
 const HEIGHT: u16 = 5 * TARGET_SIZE;
 const WIDTH: u16 = 8 * TARGET_SIZE * 2;
 const TARGET_SIZE: u16 = 3;
-const STRIKES: u32 = 3;
+const LIVES: u32 = 0;
 const DEFAULT_NUMBERS: u32 = 4;
 
 #[derive(Debug, Clone)]
@@ -37,7 +37,7 @@ pub struct ChimpTest {
 impl Default for ChimpTest {
     fn default() -> Self {
         Self {
-            lives: STRIKES,
+            lives: LIVES,
             numbers: DEFAULT_NUMBERS,
             current_number: 0,
             exit: false,
@@ -138,14 +138,10 @@ impl ChimpTest {
                     }
                 }
             }
-            Mode::Failed => {
-                self.mode = Mode::Playing;
-            }
             Mode::Results => {
                 self.reset();
             }
         }
-        //
     }
     fn populate_vec(&mut self) {
         let mut bools: [[bool; WIDTH as usize]; HEIGHT as usize] =
@@ -173,7 +169,6 @@ impl ChimpTest {
             self.current_number = 0;
             self.target_vec.clear();
             self.populate_vec();
-            self.mode = Mode::Failed;
         } else {
             self.mode = Mode::Results;
             self.savestate.update(self.numbers as f32);
@@ -341,11 +336,45 @@ impl Widget for &ChimpTest {
                         .render(pg, buf);
                 }
             }
-            Mode::Failed => {
-                block.title("╡ Failed ╞").render(vert[1], buf);
-            }
             Mode::Results => {
                 block.title("╡ Results ╞").render(vert[1], buf);
+
+                let dataset = Dataset::default()
+                    .marker(Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .cyan()
+                    .data(&[
+                        (4.0, (20.0 / 280.0)),
+                        (5.0, (14.0 / 280.0)),
+                        (6.0, (18.0 / 280.0)),
+                        (7.0, (42.0 / 280.0)),
+                        (8.0, (125.0 / 280.0)),
+                        (9.0, (240.0 / 280.0)),
+                        (10.0, (254.0 / 280.0)),
+                        (11.0, (219.0 / 280.0)),
+                        (12.0, (121.0 / 280.0)),
+                        (13.0, (59.0 / 280.0)),
+                        (14.0, (35.0 / 280.0)),
+                        (15.0, (20.0 / 280.0)),
+                        (16.0, (15.0 / 280.0)),
+                        (17.0, (10.0 / 280.0)),
+                        (18.0, (10.0 / 280.0)),
+                        (19.0, (5.0 / 280.0)),
+                        (20.0, (3.0 / 280.0)),
+                        (21.0, (2.0 / 280.0)),
+                        (22.0, (1.0 / 280.0)),
+                        (23.0, (1.0 / 280.0)),
+                        (24.0, (1.0 / 280.0)),
+                    ]);
+
+                render_graph(
+                    self.savestate.avg_score as f64,
+                    self.numbers as f64,
+                    dataset,
+                    [4.0, 24.0],
+                    main,
+                    buf,
+                );
             }
         }
     }

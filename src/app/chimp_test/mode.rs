@@ -3,6 +3,5 @@ pub enum Mode {
     #[default]
     Waiting,
     Playing,
-    Failed,
     Results,
 }

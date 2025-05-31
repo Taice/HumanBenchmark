@@ -1,6 +1,6 @@
 mod mode;
 
-use super::{Filed, Game, savestate::SaveState};
+use super::{Filed, Game, render_graph, savestate::SaveState};
 use mode::Mode;
 
 use rand::{Rng, rng};
@@ -14,9 +14,9 @@ use ratatui::{
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Styled, Stylize},
-    symbols::border,
+    symbols::{Marker, border},
     text::Span,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Dataset, GraphType, Paragraph, Widget},
 };
 
 const FILE_NAME: &str = "SequenceMemory";
@@ -333,12 +333,11 @@ impl Widget for &SequenceMemory {
             .block(Block::bordered().border_set(border::DOUBLE))
             .render(vert[0], buf);
 
+        let block = Block::bordered().border_set(border::DOUBLE);
+
         match self.mode {
             Mode::Waiting => {
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Playing field ╞")
-                    .render(vert[1], buf);
+                block.title("╡ Menu ╞").render(vert[1], buf);
 
                 let constraints = Layout::default()
                     .direction(Direction::Vertical)
@@ -354,17 +353,14 @@ impl Widget for &SequenceMemory {
                     .render(constraints[1], buf);
             }
             Mode::Clicking | Mode::Pause(_) => {
+                block.title("╡ Playing ╞").render(vert[1], buf);
+
                 let mut clicked = -1;
                 if let Some((i, instant)) = self.clicked {
                     if (instant.elapsed().as_millis() as u64) < FADE_OUT {
                         clicked = i as i8;
                     }
                 }
-
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Playing ╞")
-                    .render(vert[1], buf);
 
                 let rows = Layout::default()
                     .direction(Direction::Vertical)
@@ -440,10 +436,7 @@ impl Widget for &SequenceMemory {
                 }
             }
             Mode::Watching(step) => {
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Watching ╞")
-                    .render(vert[1], buf);
+                block.title("╡ Watching ╞").render(vert[1], buf);
 
                 let rows = Layout::default()
                     .direction(Direction::Vertical)
@@ -519,27 +512,53 @@ impl Widget for &SequenceMemory {
                 }
             }
             Mode::Results => {
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Results ╞")
-                    .render(vert[1], buf);
+                block.title("╡ Results ╞").render(vert[1], buf);
 
-                let constraints = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Min(0),
-                    ])
-                    .split(main);
-
-                Paragraph::new(format!("Your score was: {}", self.get_score()))
-                    .centered()
-                    .render(constraints[1], buf);
-                Paragraph::new(format!("Your avg. score is: {}", self.savestate.avg_score))
-                    .centered()
-                    .render(constraints[2], buf);
+                let dataset = Dataset::default()
+                    .marker(Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .cyan()
+                    .data(&[
+                        (0.0, (0.0 / 280.0)),
+                        (1.0, (50.0 / 280.0)),
+                        (2.0, (95.0 / 280.0)),
+                        (3.0, (40.0 / 280.0)),
+                        (4.0, (40.0 / 280.0)),
+                        (5.0, (66.0 / 280.0)),
+                        (6.0, (130.0 / 280.0)),
+                        (7.0, (211.0 / 280.0)),
+                        (8.0, (265.0 / 280.0)),
+                        (9.0, (265.0 / 280.0)),
+                        (10.0, (242.0 / 280.0)),
+                        (11.0, (210.0 / 280.0)),
+                        (12.0, (170.0 / 280.0)),
+                        (13.0, (130.0 / 280.0)),
+                        (14.0, (100.0 / 280.0)),
+                        (15.0, (75.0 / 280.0)),
+                        (16.0, (60.0 / 280.0)),
+                        (17.0, (40.0 / 280.0)),
+                        (18.0, (30.0 / 280.0)),
+                        (19.0, (30.0 / 280.0)),
+                        (20.0, (20.0 / 280.0)),
+                        (21.0, (17.0 / 280.0)),
+                        (22.0, (15.0 / 280.0)),
+                        (23.0, (14.0 / 280.0)),
+                        (24.0, (13.0 / 280.0)),
+                        (25.0, (10.0 / 280.0)),
+                        (26.0, (7.0 / 280.0)),
+                        (27.0, (5.0 / 280.0)),
+                        (28.0, (0.0 / 280.0)),
+                        (29.0, (0.0 / 280.0)),
+                        (30.0, (0.0 / 280.0)),
+                    ]);
+                render_graph(
+                    self.savestate.avg_score as f64,
+                    self.get_score() as f64,
+                    dataset,
+                    [0.0, 30.0],
+                    main,
+                    buf,
+                );
             }
         }
     }

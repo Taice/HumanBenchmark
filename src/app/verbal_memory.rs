@@ -12,12 +12,12 @@ use ratatui::{
     crossterm::event::{self, KeyCode, KeyEvent, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style, Stylize},
-    symbols::border,
+    symbols::{Marker, border},
     text::{Line, Span},
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Dataset, GraphType, Paragraph, Widget},
 };
 
-use super::{Filed, Game, savestate::SaveState};
+use super::{Filed, Game, render_graph, savestate::SaveState};
 
 const FILE_NAME: &str = "VerbalMemory";
 const CHANCE: u32 = 5;
@@ -356,26 +356,41 @@ impl Widget for &VerbalMemory {
             Mode::Results => {
                 block.title("╡ Results ╞").render(vert[1], buf);
 
-                let results = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Min(0),
-                    ])
-                    .split(main);
+                let dataset = Dataset::default()
+                    .marker(Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .cyan()
+                    .data(&[
+                        (0.0, (220.0 / 270.0)),
+                        (10.0, (180.0 / 270.0)),
+                        (20.0, (233.0 / 270.0)),
+                        (30.0, (247.0 / 270.0)),
+                        (40.0, (223.0 / 270.0)),
+                        (50.0, (180.0 / 270.0)),
+                        (60.0, (142.0 / 270.0)),
+                        (70.0, (102.0 / 270.0)),
+                        (80.0, (78.0 / 270.0)),
+                        (90.0, (60.0 / 270.0)),
+                        (100.0, (47.0 / 270.0)),
+                        (110.0, (32.0 / 270.0)),
+                        (120.0, (25.0 / 270.0)),
+                        (130.0, (20.0 / 270.0)),
+                        (140.0, (16.0 / 270.0)),
+                        (150.0, (5.0 / 270.0)),
+                        (160.0, (5.0 / 270.0)),
+                        (170.0, (5.0 / 270.0)),
+                        (180.0, (0.0 / 270.0)),
+                        (190.0, (0.0 / 270.0)),
+                    ]);
 
-                Paragraph::new(format!("Your score is: {}", self.score))
-                    .centered()
-                    .render(results[1], buf);
-
-                Paragraph::new(format!(
-                    "Your avg score is: {:.0}",
-                    self.savestate.avg_score
-                ))
-                .centered()
-                .render(results[2], buf);
+                render_graph(
+                    self.savestate.avg_score as f64,
+                    self.score as f64,
+                    dataset,
+                    [0.0, 190.0],
+                    main,
+                    buf,
+                );
             }
         }
     }

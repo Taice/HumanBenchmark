@@ -13,12 +13,12 @@ use ratatui::{
     crossterm::event::{self, KeyCode, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Position, Rect},
     style::{Color, Style, Styled, Stylize},
-    symbols::border,
+    symbols::{Marker, border},
     text::Span,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Dataset, GraphType, Paragraph, Widget},
 };
 
-use super::{Filed, Game, savestate::SaveState};
+use super::{Filed, Game, render_graph, savestate::SaveState};
 
 const FILE_NAME: &str = "AimTrainer";
 const TARGET_AMOUNT: u64 = 30;
@@ -264,12 +264,11 @@ impl Widget for &AimTrainer {
             vertical: 1,
         });
 
+        let block = Block::bordered().border_set(border::DOUBLE);
+
         match self.mode {
             Mode::Waiting => {
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Playing field ╞")
-                    .render(vert[1], buf);
+                block.title("╡ Menu ╞").render(vert[1], buf);
 
                 let main_vert = Layout::default()
                     .direction(Direction::Vertical)
@@ -300,10 +299,7 @@ impl Widget for &AimTrainer {
                     .render(main_vert[1], buf);
             }
             Mode::Playing => {
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Playing field ╞")
-                    .render(vert[1], buf);
+                block.title("╡ Playing ╞").render(vert[1], buf);
 
                 let pf_vert = Layout::default()
                     .direction(Direction::Vertical)
@@ -342,31 +338,44 @@ impl Widget for &AimTrainer {
                 render_target(target, buf);
             }
             Mode::Results => {
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Results ╞")
-                    .render(vert[1], buf);
+                block.title("╡ Results ╞").render(vert[1], buf);
 
-                let constraint = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Min(0),
-                    ])
-                    .split(main);
+                let dataset = Dataset::default()
+                    .marker(Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .cyan()
+                    .data(&[
+                        (0.0, (0.0 / 270.0)),
+                        (50.0, (0.0 / 270.0)),
+                        (100.0, (0.0 / 270.0)),
+                        (150.0, (0.0 / 270.0)),
+                        (200.0, (0.0 / 270.0)),
+                        (250.0, (5.0 / 270.0)),
+                        (300.0, (60.0 / 270.0)),
+                        (350.0, (205.0 / 270.0)),
+                        (400.0, (245.0 / 270.0)),
+                        (450.0, (220.0 / 270.0)),
+                        (500.0, (160.0 / 270.0)),
+                        (550.0, (116.0 / 270.0)),
+                        (600.0, (74.0 / 270.0)),
+                        (650.0, (45.0 / 270.0)),
+                        (700.0, (30.0 / 270.0)),
+                        (750.0, (25.0 / 270.0)),
+                        (800.0, (20.0 / 270.0)),
+                        (850.0, (15.0 / 270.0)),
+                        (900.0, (10.0 / 270.0)),
+                        (950.0, (5.0 / 270.0)),
+                        (1000.0, (0.0 / 270.0)),
+                    ]);
 
-                Paragraph::new(format!("Your score is: {:.0}", self.times.avg_score))
-                    .centered()
-                    .render(constraint[1], buf);
-
-                Paragraph::new(format!(
-                    "Your avg score overall is: {:.0}",
-                    self.savestate.avg_score
-                ))
-                .centered()
-                .render(constraint[2], buf);
+                render_graph(
+                    self.savestate.avg_score as f64,
+                    self.times.avg_score as f64,
+                    dataset,
+                    [0.0, 1000.0],
+                    main,
+                    buf,
+                );
             }
         }
     }

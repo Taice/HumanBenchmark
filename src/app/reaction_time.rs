@@ -1,11 +1,14 @@
 mod mode;
 
+use super::render_graph;
 use super::{Filed, Game, savestate::SaveState};
 use mode::Mode;
 
 use rand::{Rng, rng};
 use ratatui::style::Stylize;
+use ratatui::symbols::Marker;
 use ratatui::text::Span;
+use ratatui::widgets::{Dataset, GraphType};
 use std::io;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -24,7 +27,7 @@ const FILE_NAME: &str = "ReactionTime";
 pub struct ReactionTime {
     exit: bool,
     curr: Option<SystemTime>,
-    times: Vec<Duration>,
+    time: f32,
     savestate: SaveState,
     mode: Mode,
 }
@@ -61,16 +64,6 @@ impl ReactionTime {
         self.curr = Some(SystemTime::now());
         Ok(())
     }
-
-    // lol what is this shit
-    fn get_avg_time(&self) -> u64 {
-        (self.savestate.avg_score.round() as u64 * self.savestate.num_entries as u64
-            + self
-                .times
-                .iter()
-                .fold(0u64, |acc, x| acc + x.as_millis() as u64))
-            / (self.savestate.num_entries as u64 + self.times.len() as u64)
-    }
 }
 
 impl Game for ReactionTime {
@@ -98,13 +91,21 @@ impl Game for ReactionTime {
                         event::Event::Key(key) => match key.code {
                             KeyCode::Esc | KeyCode::Char('q') => self.exit = true,
                             _ => {
-                                self.times.push(self.curr.unwrap().elapsed().unwrap());
+                                self.savestate.update(
+                                    self.curr.unwrap().elapsed().unwrap().as_millis() as f32,
+                                );
+                                self.time =
+                                    self.curr.unwrap().elapsed().unwrap().as_millis() as f32;
                                 self.mode = Mode::Results;
                             }
                         },
                         event::Event::Mouse(mouse) => {
                             if let MouseEventKind::Down(_) = mouse.kind {
-                                self.times.push(self.curr.unwrap().elapsed().unwrap());
+                                self.savestate.update(
+                                    self.curr.unwrap().elapsed().unwrap().as_millis() as f32,
+                                );
+                                self.time =
+                                    self.curr.unwrap().elapsed().unwrap().as_millis() as f32;
                                 self.mode = Mode::Results;
                             }
                         }
@@ -146,10 +147,7 @@ impl Filed<'_> for ReactionTime {
     type SaveState = SaveState;
 
     fn get_savestate(&self) -> Self::SaveState {
-        SaveState {
-            avg_score: self.get_avg_time() as f32,
-            num_entries: self.savestate.num_entries + self.times.len() as u32,
-        }
+        self.savestate
     }
 
     fn from_savestate(savestate: Self::SaveState) -> Self {
@@ -178,11 +176,6 @@ impl Widget for &ReactionTime {
             .block(Block::bordered().border_set(border::DOUBLE))
             .render(vert[0], buf);
 
-        Block::bordered()
-            .border_set(border::DOUBLE)
-            .title("╡ Playing field ╞")
-            .render(vert[1], buf);
-
         let main = vert[1].inner(ratatui::layout::Margin {
             horizontal: 1,
             vertical: 1,
@@ -199,8 +192,11 @@ impl Widget for &ReactionTime {
             ])
             .split(main);
 
+        let block = Block::bordered().border_set(border::DOUBLE);
+
         match self.mode {
             Mode::Waiting => {
+                block.title("╡ Game ╞").render(vert[1], buf);
                 Block::new()
                     .style(Style::default().bg(Color::Red))
                     .render(main, buf);
@@ -215,6 +211,7 @@ impl Widget for &ReactionTime {
                     .render(center[4], buf);
             }
             Mode::TooEarly => {
+                block.title("╡ Too early ╞").render(vert[1], buf);
                 Block::new()
                     .style(Style::default().bg(Color::DarkGray))
                     .render(main, buf);
@@ -227,6 +224,7 @@ impl Widget for &ReactionTime {
                     .render(center[4], buf);
             }
             Mode::Clicking => {
+                block.title("╡ Clicking ╞").render(vert[1], buf);
                 Block::new()
                     .style(Style::default().bg(Color::Green))
                     .render(main, buf);
@@ -241,6 +239,7 @@ impl Widget for &ReactionTime {
                     .render(center[4], buf);
             }
             Mode::TimeOut => {
+                block.title("╡ Timed out ╞").render(vert[1], buf);
                 Paragraph::new("You're so slow I literally timed out.")
                     .centered()
                     .render(center[1], buf);
@@ -250,22 +249,45 @@ impl Widget for &ReactionTime {
                     .render(center[4], buf);
             }
             Mode::Results => {
-                Paragraph::new(format!(
-                    "Your time was: {}ms",
-                    self.times.last().unwrap().as_millis()
-                ))
-                .centered()
-                .render(center[1], buf);
-                Paragraph::new(format!(
-                    "Avg. time across the board: {}ms",
-                    self.get_avg_time()
-                ))
-                .centered()
-                .render(center[3], buf);
+                block.title("╡ Results ╞").render(vert[1], buf);
 
-                Paragraph::new("'r' to restart and Esc/'q' to quit")
-                    .centered()
-                    .render(center[4], buf);
+                let dataset = Dataset::default()
+                    .marker(Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .cyan()
+                    .data(&[
+                        (0.0, (0.0 / 270.0)),
+                        (25.0, (0.0 / 270.0)),
+                        (50.0, (0.0 / 270.0)),
+                        (75.0, (0.0 / 270.0)),
+                        (100.0, (0.0 / 270.0)),
+                        (115.0, (5.0 / 270.0)),
+                        (125.0, (14.0 / 270.0)),
+                        (150.0, (78.0 / 270.0)),
+                        (175.0, (205.0 / 270.0)),
+                        (200.0, (250.0 / 270.0)),
+                        (225.0, (230.0 / 270.0)),
+                        (250.0, (160.0 / 270.0)),
+                        (275.0, (90.0 / 270.0)),
+                        (300.0, (50.0 / 270.0)),
+                        (325.0, (30.0 / 270.0)),
+                        (350.0, (17.0 / 270.0)),
+                        (375.0, (10.0 / 270.0)),
+                        (400.0, (8.0 / 270.0)),
+                        (425.0, (6.0 / 270.0)),
+                        (450.0, (5.0 / 270.0)),
+                        (475.0, (3.0 / 270.0)),
+                        (500.0, (3.0 / 270.0)),
+                    ]);
+
+                render_graph(
+                    self.savestate.avg_score as f64,
+                    self.time as f64,
+                    dataset,
+                    [0.0, 500.0],
+                    main,
+                    buf,
+                );
             }
         }
     }

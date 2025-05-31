@@ -14,12 +14,12 @@ use ratatui::{
     crossterm::event::{self, KeyCode},
     layout::{Constraint, Direction, Layout, Margin},
     style::{Color, Stylize},
-    symbols::border,
+    symbols::{Marker, border},
     text::Span,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Dataset, GraphType, Paragraph, Widget},
 };
 
-use super::{Filed, Game, savestate::SaveState};
+use super::{Filed, Game, render_graph, savestate::SaveState};
 
 const FILE_NAME: &str = "NumberMemory";
 const FADE_OUT: u64 = 2000;
@@ -215,7 +215,7 @@ impl Widget for &NumberMemory {
 
         match self.mode {
             Mode::Waiting => {
-                block.title("╡ Game ╞").render(vert[1], buf);
+                block.title("╡ Menu ╞").render(vert[1], buf);
 
                 let thing = Layout::default()
                     .direction(Direction::Vertical)
@@ -230,8 +230,9 @@ impl Widget for &NumberMemory {
                     .centered()
                     .render(thing, buf);
             }
-
             Mode::Watching(instant) => {
+                block.clone().title("╡ Watching.. ╞").render(vert[1], buf);
+
                 let mut string = String::from("╡");
                 let percent = ((instant.elapsed().as_millis() as f32 / (self.get_dur()) as f32)
                     * 10.0)
@@ -317,60 +318,45 @@ impl Widget for &NumberMemory {
             Mode::Results => {
                 block.title("╡ Results ╞").render(vert[1], buf);
 
-                let results = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(1),
-                        Constraint::Length(4),
-                        Constraint::Length(1),
-                        Constraint::Min(0),
-                    ])
-                    .split(main);
+                let dataset = Dataset::default()
+                    .marker(Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .cyan()
+                    .data(&[
+                        (0.0, (0.0 / 280.0)),
+                        (1.0, (18.0 / 280.0)),
+                        (2.0, (5.0 / 280.0)),
+                        (3.0, (5.0 / 280.0)),
+                        (4.0, (7.0 / 280.0)),
+                        (5.0, (15.0 / 280.0)),
+                        (6.0, (42.0 / 280.0)),
+                        (7.0, (112.0 / 280.0)),
+                        (8.0, (206.0 / 280.0)),
+                        (9.0, (255.0 / 280.0)),
+                        (10.0, (200.0 / 280.0)),
+                        (11.0, (135.0 / 280.0)),
+                        (12.0, (65.0 / 280.0)),
+                        (13.0, (35.0 / 280.0)),
+                        (14.0, (20.0 / 280.0)),
+                        (15.0, (10.0 / 280.0)),
+                        (16.0, (7.0 / 280.0)),
+                        (17.0, (5.0 / 280.0)),
+                        (18.0, (4.0 / 280.0)),
+                        (19.0, (3.0 / 280.0)),
+                        (20.0, (2.0 / 280.0)),
+                        (21.0, (1.0 / 280.0)),
+                        (22.0, (0.0 / 280.0)),
+                        (23.0, (0.0 / 280.0)),
+                    ]);
 
-                Paragraph::new(format!("Your score is: {}", self.score))
-                    .centered()
-                    .render(results[1], buf);
-
-                Paragraph::new(format!(
-                    "Your avg score is: {:.0}",
-                    self.savestate.avg_score
-                ))
-                .centered()
-                .render(results[3], buf);
-
-                let thong = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length((self.actual_number.len() as u16 + 4).max(14)),
-                        Constraint::Min(0),
-                    ])
-                    .split(results[2])[1];
-
-                Block::bordered()
-                    .border_set(border::DOUBLE)
-                    .title("╡ Number ╞")
-                    .title_alignment(ratatui::layout::Alignment::Center)
-                    .render(thong, buf);
-
-                let inner = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(0),
-                        Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Min(0),
-                    ])
-                    .split(thong.inner(Margin {
-                        horizontal: 2,
-                        vertical: 0,
-                    }));
-
-                Paragraph::new(self.number.get_styled_text(&self.actual_number))
-                    .render(inner[1], buf);
-                Paragraph::new(self.number.get_wrong_styled_text(&self.actual_number))
-                    .render(inner[2], buf);
+                render_graph(
+                    self.savestate.avg_score as f64,
+                    self.score as f64,
+                    dataset,
+                    [0.0, 23.0],
+                    main,
+                    buf,
+                );
             }
         }
     }
