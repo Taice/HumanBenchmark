@@ -1,4 +1,5 @@
 mod aim_trainer;
+mod chimp_test;
 mod number_memory;
 mod reaction_time;
 mod savestate;
@@ -203,6 +204,7 @@ impl Menu {
             2 => aim_trainer::AimTrainer::run(terminal)?,
             3 => number_memory::NumberMemory::run(terminal)?,
             4 => verbal_memory::VerbalMemory::run(terminal)?,
+            5 => chimp_test::ChimpTest::run(terminal)?,
             _ => (),
         }
         Ok(())
