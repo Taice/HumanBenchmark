@@ -17,7 +17,7 @@ use texts::TEXTS;
 
 use super::{Filed, Game, render_graph, savestate::SaveState};
 
-const FILE_NAME: &str = "ChimpTest";
+const FILE_NAME: &str = "TypingTest";
 
 #[derive(Default, Debug, Clone)]
 pub struct TypingTest {
@@ -197,7 +197,7 @@ impl Widget for &TypingTest {
             .constraints([Constraint::Length(3), Constraint::Min(0)])
             .split(area);
 
-        Paragraph::new(Span::from("Verbal Memory Test").fg(Color::Red))
+        Paragraph::new(Span::from("Typing Test").fg(Color::Red))
             .centered()
             .block(Block::bordered().border_set(border::DOUBLE))
             .render(vert[0], buf);

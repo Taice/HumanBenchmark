@@ -231,7 +231,7 @@ impl Widget for &ChimpTest {
             .constraints([Constraint::Length(3), Constraint::Min(0)])
             .split(area);
 
-        Paragraph::new(Span::from("Verbal Memory Test").fg(Color::Red))
+        Paragraph::new(Span::from("Chimp Test").fg(Color::Red))
             .centered()
             .block(Block::bordered().border_set(border::DOUBLE))
             .render(vert[0], buf);
