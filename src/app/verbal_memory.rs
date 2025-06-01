@@ -165,7 +165,7 @@ impl VerbalMemory {
     }
 
     fn decrease_lives(&mut self) {
-        if self.lives > 0 {
+        if self.lives > 1 {
             self.lives -= 1;
         } else {
             self.mode = Mode::Results;
