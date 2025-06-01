@@ -4,6 +4,7 @@ mod number_memory;
 mod reaction_time;
 mod savestate;
 mod sequence_memory;
+mod typing_test;
 mod verbal_memory;
 
 use std::{
@@ -205,6 +206,7 @@ impl Menu {
             3 => number_memory::NumberMemory::run(terminal)?,
             4 => verbal_memory::VerbalMemory::run(terminal)?,
             5 => chimp_test::ChimpTest::run(terminal)?,
+            7 => typing_test::TypingTest::run(terminal)?,
             _ => (),
         }
         Ok(())
@@ -417,6 +419,6 @@ fn render_graph(
         .constraints([Constraint::Length(1), Constraint::Length(1)])
         .split(hort[1]);
 
-    ("---".set_style(Color::Red) + string.into()).render(lines[0], buf);
-    ("---".set_style(Color::Green) + avg_string.into()).render(lines[1], buf);
+    ("---".set_style(Color::Red) + string.into()).white().render(lines[0], buf);
+    ("---".set_style(Color::Green) + avg_string.into()).white().render(lines[1], buf);
 }
