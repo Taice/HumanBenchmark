@@ -43,7 +43,7 @@ impl TypingTest {
         match self.mode {
             Mode::Waiting | Mode::Results => match key.code {
                 KeyCode::Char(' ') | KeyCode::Enter => self.play(),
-                KeyCode::Char('q') => self.exit = true,
+                KeyCode::Char('q') | KeyCode::Esc => self.exit = true,
                 KeyCode::Char('r') => self.reset(),
                 _ => (),
             },
